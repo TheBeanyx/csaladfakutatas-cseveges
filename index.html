@@ -32,9 +32,25 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            overflow: hidden;
         }
 
-        /* Minden nézet alapbeállítása */
+        /* Globális Értesítési Sáv */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--dark-brown);
+            color: white;
+            border: 1px solid var(--gold);
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: none;
+            font-size: 0.9rem;
+        }
+
         .view-container {
             display: none;
             width: 100%;
@@ -109,7 +125,7 @@
             font-size: 0.9rem;
         }
 
-        /* --- CHAT / GENERAL PANELS STÍLUSOK --- */
+        /* --- CHAT STÍLUSOK --- */
         .panel-header {
             background: var(--dark-brown);
             color: var(--gold);
@@ -128,8 +144,6 @@
             width: auto;
             margin: 0;
         }
-
-        /* --- ÜGYFÉL CHAT NÉZET --- */
         .chat-layout {
             display: flex;
             flex-direction: column;
@@ -150,6 +164,12 @@
             max-width: 60%;
             line-height: 1.4;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: relative;
+            word-wrap: break-word;
+        }
+        .msg-pending {
+            opacity: 0.6;
+            font-style: italic;
         }
         .msg-client {
             background: var(--medium-brown);
@@ -222,6 +242,8 @@
 </head>
 <body>
 
+    <div id="toast" class="toast-notification"></div>
+
     <div id="view-auth" class="view-container" style="display: flex;">
         <div class="auth-card">
             <h2 id="auth-title">Családfakutatás</h2>
@@ -255,8 +277,7 @@
             <button class="logout-btn" onclick="logout()">Kilépés</button>
         </div>
         <div class="admin-layout">
-            <div class="sidebar" id="admin-sidebar">
-                </div>
+            <div class="sidebar" id="admin-sidebar"></div>
             <div class="admin-main">
                 <div id="admin-notice" class="read-only-banner" style="display: none;">CSAK MEGTEKINTÉSI JOG (ÍRÁS LETILTVA)</div>
                 <div class="chat-area" id="admin-chat-area" style="flex:1;">
@@ -271,7 +292,7 @@
     </div>
 
     <script>
-        // Firebase Konfigurációd
+        // Firebase Konfiguráció
         const firebaseConfig = {
           apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
           authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
@@ -289,13 +310,24 @@
         let currentUser = null;
         let activeAdminChatId = null;
         let adminMessagesListener = null;
+        let clientMessagesListener = null;
 
-        // --- AUTH AUTOMATIKUS JOGOSULTSÁG-KEZELŐ ---
+        // Vizuális értesítés függvény
+        function showToast(text, duration = 5000) {
+            const toast = document.getElementById('toast');
+            toast.innerText = text;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, duration);
+        }
+
+        // --- AUTH ÁLLAPOT FIGYELŐ ---
         auth.onAuthStateChanged(user => {
-            // Minden nézet elrejtése alaphelyzetben
             document.getElementById('view-auth').style.display = 'none';
             document.getElementById('view-chat').style.display = 'none';
             document.getElementById('view-admin').style.display = 'none';
+
+            if(clientMessagesListener) { clientMessagesListener(); clientMessagesListener = null; }
+            if(adminMessagesListener) { adminMessagesListener(); adminMessagesListener = null; }
 
             if (!user) {
                 document.getElementById('view-auth').style.display = 'flex';
@@ -305,11 +337,9 @@
                 const email = user.email.toLowerCase();
 
                 if (email === 'admin@csaladfakutatas.hu' || email === 'admin.permission@csaladfakutatas.hu' || email === 'admin.permission@csaladfakutatás.hu') {
-                    // ADMIN FELÜLET
                     document.getElementById('view-admin').style.display = 'block';
                     document.getElementById('admin-user-email').innerText = user.email;
                     
-                    // Írási jogok letiltása ha olvasó admin
                     if (email.includes('permission')) {
                         document.getElementById('admin-input-bar').style.display = 'none';
                         document.getElementById('admin-notice').style.display = 'block';
@@ -319,7 +349,6 @@
                     }
                     initAdminPanel();
                 } else {
-                    // ÜGYFÉL CHAT FELÜLET
                     document.getElementById('view-chat').style.display = 'block';
                     document.getElementById('client-user-email').innerText = user.email;
                     initClientChat();
@@ -327,7 +356,6 @@
             }
         });
 
-        // --- AUTH MŰVELETEK ---
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
             document.getElementById('auth-title').innerText = isLoginMode ? 'Családfakutatás' : 'Regisztráció';
@@ -338,33 +366,37 @@
         function handleAuth() {
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
-            if(!email || !password) return alert('Kérjük, töltsön ki minden mezőt!');
+            if(!email || !password) return showToast('Kérjük, töltsön ki minden mezőt!');
 
             if(isLoginMode) {
-                auth.signInWithEmailAndPassword(email, password).catch(err => alert("Hiba: " + err.message));
+                auth.signInWithEmailAndPassword(email, password).catch(err => showToast("Hiba: " + err.message));
             } else {
-                auth.createUserWithEmailAndPassword(email, password).catch(err => alert("Hiba: " + err.message));
+                auth.createUserWithEmailAndPassword(email, password).catch(err => showToast("Hiba: " + err.message));
             }
         }
 
         function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(err => alert("Google Hiba: " + err.message));
+            auth.signInWithPopup(provider).catch(err => showToast("Google Hiba: " + err.message));
         }
 
         function logout() {
-            if(adminMessagesListener) adminMessagesListener();
             auth.signOut();
         }
 
-        // --- ÜGYFÉL CHAT LOGIKA ---
+        // --- ÜGYFÉL CHAT ---
         function initClientChat() {
-            db.collection("messages")
+            const area = document.getElementById('client-chat-area');
+            
+            clientMessagesListener = db.collection("messages")
               .where("chatId", "==", currentUser.email)
               .orderBy("timestamp", "asc")
               .onSnapshot(snapshot => {
-                  const area = document.getElementById('client-chat-area');
+                  // Töröljük az ideiglenes elemeket, ha megjött a valódi adat
                   area.innerHTML = '';
+                  if(snapshot.empty) {
+                      area.innerHTML = '<div style="text-align:center;color:#aaa;margin-top:20px;">Nincs még üzenet. Írjon nekünk!</div>';
+                  }
                   snapshot.forEach(doc => {
                       const data = doc.data();
                       const div = document.createElement('div');
@@ -373,6 +405,9 @@
                       area.appendChild(div);
                   });
                   area.scrollTop = area.scrollHeight;
+              }, error => {
+                  console.error("Firestore hiba:", error);
+                  showToast("Indexelés szükséges! Ellenőrizze a böngésző konzolt (F12) a linkért.");
               });
         }
 
@@ -381,28 +416,37 @@
             const text = input.value.trim();
             if(!text) return;
 
-            // Első lépés: Üzenet mentése a szabályoknak megfelelő struktúrában
+            const area = document.getElementById('client-chat-area');
+
+            // 1. AZONNALI VIZUÁLIS VISSZAJELZÉS (Helyi elem hozzáadása a képernyőhöz)
+            const tempDiv = document.createElement('div');
+            tempDiv.className = 'msg-bubble msg-client msg-pending';
+            tempDiv.innerText = text + " (Küldés...)";
+            area.appendChild(tempDiv);
+            area.scrollTop = area.scrollHeight;
+
+            input.value = '';
+
+            // 2. MENTÉS FIRESTORE-BA
             db.collection("messages").add({
                 chatId: currentUser.email,
                 sender: currentUser.email,
                 text: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
-                // Második lépés: A chat-lista frissítése a sidebarhoz
+                showToast("Üzenet sikeresen elküldve!", 2000);
                 return db.collection("chats").doc(currentUser.email).set({
                     chatId: currentUser.email,
                     lastMessage: text,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }).catch(err => {
-                console.error(err);
-                alert("Hiba történt az üzenet küldésekor: " + err.message);
+                tempDiv.remove(); // Hiba esetén töröljük az ideiglenes buborékot
+                showToast("Hiba történt: " + err.message);
             });
-
-            input.value = '';
         }
 
-        // --- ADMIN PANELS LOGIKA ---
+        // --- ADMIN PANEL ---
         function initAdminPanel() {
             db.collection("chats")
               .orderBy("timestamp", "desc")
@@ -417,6 +461,8 @@
                       div.onclick = () => selectAdminChat(data.chatId, div);
                       sidebar.appendChild(div);
                   });
+              }, error => {
+                  showToast("Hiba a listázáskor: " + error.message);
               });
         }
 
@@ -427,30 +473,44 @@
 
             if(adminMessagesListener) adminMessagesListener();
 
+            const area = document.getElementById('admin-chat-area');
+
             adminMessagesListener = db.collection("messages")
               .where("chatId", "==", chatId)
               .orderBy("timestamp", "asc")
               .onSnapshot(snapshot => {
-                  const area = document.getElementById('admin-chat-area');
                   area.innerHTML = '';
                   snapshot.forEach(doc => {
                       const data = doc.data();
                       const div = document.createElement('div');
-                      div.className = `msg-bubble ${data.sender === chatId ? 'msg-admin' : 'msg-client'}`; // admin nézetben fordított színek az átláthatóságért
+                      div.className = `msg-bubble ${data.sender === chatId ? 'msg-admin' : 'msg-client'}`;
                       div.innerText = data.text;
                       area.appendChild(div);
                   });
                   area.scrollTop = area.scrollHeight;
+              }, error => {
+                  showToast("Nem sikerült betölteni az üzeneteket. Index szükséges.");
               });
         }
 
         function sendAdminMsg() {
-            if(currentUser.email.toLowerCase().includes('permission')) return; // Olvasó jogú admin nem küldhet
-            if(!activeAdminChatId) return alert('Válasszon ki egy beszélgetést!');
+            if(currentUser.email.toLowerCase().includes('permission')) return;
+            if(!activeAdminChatId) return showToast('Válasszon ki egy beszélgetést!');
 
             const input = document.getElementById('admin-msg-input');
             const text = input.value.trim();
             if(!text) return;
+
+            const area = document.getElementById('admin-chat-area');
+
+            // Azonnali helyi visszajelzés az adminnak is
+            const tempDiv = document.createElement('div');
+            tempDiv.className = 'msg-bubble msg-client msg-pending';
+            tempDiv.innerText = text + " (Küldés...)";
+            area.appendChild(tempDiv);
+            area.scrollTop = area.scrollHeight;
+
+            input.value = '';
 
             db.collection("messages").add({
                 chatId: activeAdminChatId,
@@ -462,9 +522,10 @@
                     lastMessage: text,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-            }).catch(err => alert("Hiba küldéskor: " + err.message));
-
-            input.value = '';
+            }).catch(err => {
+                tempDiv.remove();
+                showToast("Hiba küldéskor: " + err.message);
+            });
         }
     </script>
 </body>

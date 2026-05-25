@@ -3,926 +3,468 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Családfakutatás - Kapcsolat és Chat</title>
+    <title>Családfakutatás - Prémium Chat</title>
     
-    <!-- Google Fonts a prémium megjelenésért -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <!-- Font Awesome Ikonok -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Firebase SDK Compat verziók -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <style>
-        /* Sémák és alapok */
         :root {
-            --bg-dark: #1E130C;
-            --bg-medium: #2C1A11;
-            --bg-light: #3D281D;
-            --gold-primary: #D4AF37;
-            --gold-hover: #F3E5AB;
-            --gold-dark: #AA7C11;
-            --text-white: #F9F6F0;
-            --text-muted: #D1C7BD;
-            --border-gold: rgba(212, 175, 55, 0.3);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Montserrat', sans-serif;
+            --dark-brown: #2C1A11;
+            --medium-brown: #4A3225;
+            --light-brown: #5C4033;
+            --gold: #D4AF37;
+            --light-gold: #F3E5AB;
+            --bg-sand: #F9F6F0;
+            --text-dark: #332211;
         }
 
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-white);
-            height: 100vh;
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-sand);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            height: 100vh;
         }
 
-        /* Nézetek kezelése */
-        .view {
+        /* Minden nézet alapbeállítása */
+        .view-container {
             display: none;
             width: 100%;
             height: 100vh;
-            animation: fadeIn 0.4s ease-in-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        /* LOADING KÉPERNYŐ */
-        #loading-view {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: var(--bg-dark);
-        }
-
-        .loader {
-            border: 4px solid var(--bg-light);
-            border-top: 4px solid var(--gold-primary);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ARANY GOMB STÍLUS */
-        .btn-gold {
-            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
-            color: var(--bg-dark);
-            border: none;
-            border-radius: 4px;
-            padding: 12px 20px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
-        }
-
-        .btn-gold:hover {
-            background: linear-gradient(135deg, var(--gold-hover) 0%, var(--gold-primary) 100%);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-            transform: translateY(-1px);
-        }
-
-        /* 1. AUTH VIEW (BEJELENTKEZÉS) */
-        .auth-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            width: 100%;
-            background: radial-gradient(circle, var(--bg-medium) 0%, var(--bg-dark) 100%);
-        }
-
+        /* --- AUTH STÍLUSOK --- */
         .auth-card {
-            background: rgba(44, 26, 17, 0.85);
-            border: 1px solid var(--gold-primary);
-            border-radius: 12px;
+            background: var(--dark-brown);
             padding: 40px;
+            border-radius: 12px;
+            border: 2px solid var(--gold);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             width: 100%;
-            max-width: 450px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.1);
+            max-width: 400px;
             text-align: center;
-            backdrop-filter: blur(10px);
+            margin: auto;
         }
-
-        .brand-title {
+        .auth-card h2 {
             font-family: 'Cinzel', serif;
-            color: var(--gold-primary);
-            font-size: 2rem;
-            margin-bottom: 10px;
-            letter-spacing: 2px;
+            color: var(--gold);
+            margin-bottom: 25px;
         }
-
-        .brand-subtitle {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 30px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-        }
-
-        .auth-card h3 {
-            font-family: 'Cinzel', serif;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: var(--text-white);
-        }
-
-        .input-group {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .input-group i {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--gold-primary);
-        }
-
-        .auth-input {
+        input {
             width: 100%;
-            padding: 12px 15px 12px 45px;
-            background: rgba(30, 19, 12, 0.6);
-            border: 1px solid var(--border-gold);
-            border-radius: 4px;
-            color: var(--text-white);
-            font-size: 1rem;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid var(--gold);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            box-sizing: border-box;
+        }
+        input:focus {
             outline: none;
+            border-color: var(--light-gold);
+            background: rgba(255,255,255,0.1);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            letter-spacing: 1px;
             transition: all 0.3s ease;
         }
-
-        .auth-input:focus {
-            border-color: var(--gold-primary);
-            box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
-            background: rgba(30, 19, 12, 0.9);
+        .btn-gold {
+            background: linear-gradient(45deg, #B8860B, #D4AF37);
+            color: var(--dark-brown);
         }
-
-        .auth-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 25px;
+        .btn-gold:hover {
+            background: linear-gradient(45deg, #D4AF37, #F3E5AB);
+            transform: translateY(-2px);
         }
-
         .btn-google {
             background: transparent;
-            border: 1px solid var(--gold-primary);
-            color: var(--gold-primary);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
+            color: var(--gold);
+            border: 1px solid var(--gold);
         }
-
         .btn-google:hover {
             background: rgba(212, 175, 55, 0.1);
-            color: var(--gold-hover);
         }
-
-        .toggle-auth {
-            margin-top: 20px;
+        .toggle-link {
+            color: var(--light-gold);
+            cursor: pointer;
+            margin-top: 15px;
             display: inline-block;
-            color: var(--text-muted);
+            text-decoration: underline;
             font-size: 0.9rem;
-            cursor: pointer;
-            text-decoration: none;
-            transition: color 0.3s;
         }
 
-        .toggle-auth:hover {
-            color: var(--gold-primary);
-        }
-
-
-        /* 2. CHAT VIEW (ÜGYFÉL) & ADMIN PLATFORM */
-        .app-container {
+        /* --- CHAT / GENERAL PANELS STÍLUSOK --- */
+        .panel-header {
+            background: var(--dark-brown);
+            color: var(--gold);
+            padding: 15px 30px;
             display: flex;
-            height: 100%;
-            width: 100%;
-        }
-
-        /* Közös fejléc elemek */
-        .app-header {
-            background: var(--bg-medium);
-            border-bottom: 1px solid var(--border-gold);
-            height: 70px;
-            display: flex;
-            align-items: center;
             justify-content: space-between;
-            padding: 0 30px;
-            width: 100%;
-        }
-
-        .app-header .logo-area {
-            display: flex;
             align-items: center;
-            gap: 15px;
-        }
-
-        .app-header .logo-area h1 {
+            border-bottom: 3px solid var(--gold);
             font-family: 'Cinzel', serif;
-            color: var(--gold-primary);
-            font-size: 1.4rem;
-            letter-spacing: 1px;
         }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--text-muted);
-        }
-
         .logout-btn {
-            background: transparent;
-            border: 1px solid #d9534f;
-            color: #d9534f;
-            padding: 8px 15px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-
-        .logout-btn:hover {
-            background: #d9534f;
+            background: #8B0000;
             color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            width: auto;
+            margin: 0;
         }
 
-        /* Csevegő doboz elrendezése */
-        .chat-main-area {
-            flex: 1;
+        /* --- ÜGYFÉL CHAT NÉZET --- */
+        .chat-layout {
             display: flex;
             flex-direction: column;
-            background: radial-gradient(circle, var(--bg-light) 0%, var(--bg-dark) 100%);
-            position: relative;
+            height: 100%;
         }
-
-        .chat-messages-container {
+        .chat-area {
             flex: 1;
             padding: 30px;
             overflow-y: auto;
+            background: #FFFDF9;
             display: flex;
             flex-direction: column;
-            gap: 15px;
         }
-
-        /* Egyedi Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-dark);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-light);
-            border: 1px solid var(--border-gold);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--gold-primary);
-        }
-
-        /* Üzenet buborékok */
         .msg-bubble {
-            max-width: 65%;
-            padding: 14px 18px;
-            border-radius: 12px;
-            line-height: 1.5;
-            position: relative;
-            word-wrap: break-word;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            animation: messageSlide 0.3s ease-out;
+            margin: 8px 0;
+            padding: 12px 18px;
+            border-radius: 15px;
+            max-width: 60%;
+            line-height: 1.4;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-
-        @keyframes messageSlide {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Ügyfél üzenet stílusa */
         .msg-client {
-            background: linear-gradient(135deg, #2c1a11 0%, #1e130c 100%);
-            border: 1px solid var(--border-gold);
-            color: var(--text-white);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        /* Admin üzenet stílusa (Arany) */
-        .msg-admin {
-            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
-            color: #1e130c;
+            background: var(--medium-brown);
+            color: var(--light-gold);
             align-self: flex-end;
             border-bottom-right-radius: 2px;
-            font-weight: 500;
         }
-
-        .msg-time {
-            display: block;
-            font-size: 0.7rem;
-            margin-top: 6px;
-            opacity: 0.7;
-            text-align: right;
+        .msg-admin {
+            background: white;
+            color: var(--dark-brown);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #E0D6C8;
         }
-
-        /* Beviteli mező */
-        .chat-input-wrapper {
-            background: var(--bg-medium);
-            border-top: 1px solid var(--border-gold);
+        .input-bar {
             padding: 20px 30px;
+            background: var(--bg-sand);
+            border-top: 1px solid #E0D6C8;
             display: flex;
-            align-items: center;
             gap: 15px;
         }
-
-        .chat-input-wrapper input {
-            flex: 1;
-            background: var(--bg-dark);
-            border: 1px solid var(--border-gold);
-            padding: 14px 20px;
-            border-radius: 8px;
-            color: var(--text-white);
-            outline: none;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+        .input-bar input {
+            color: var(--text-dark);
+            background: white;
+            border: 1px solid var(--medium-brown);
+        }
+        .input-bar button {
+            width: 150px;
+            margin: 0;
         }
 
-        .chat-input-wrapper input:focus {
-            border-color: var(--gold-primary);
-        }
-
-
-        /* 3. ADMIN VIEW SPILTTED SCREEN */
-        .admin-sidebar {
-            width: 350px;
-            background: var(--bg-medium);
-            border-right: 1px solid var(--border-gold);
+        /* --- ADMIN PANELS STÍLUSOK --- */
+        .admin-layout {
             display: flex;
-            flex-direction: column;
+            height: calc(100vh - 61px);
         }
-
-        .sidebar-title {
-            padding: 20px;
-            background: rgba(30, 19, 12, 0.5);
-            font-family: 'Cinzel', serif;
-            border-bottom: 1px solid var(--border-gold);
-            color: var(--gold-primary);
-            text-align: center;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-        }
-
-        .chat-list {
-            flex: 1;
+        .sidebar {
+            width: 320px;
+            background: var(--medium-brown);
+            border-right: 2px solid var(--gold);
             overflow-y: auto;
         }
-
-        .chat-item {
+        .thread-item {
             padding: 20px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+            border-bottom: 1px solid rgba(214, 175, 55, 0.2);
+            color: white;
             cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
+            transition: background 0.2s;
         }
-
-        .chat-item:hover {
-            background: rgba(212, 175, 55, 0.05);
+        .thread-item:hover, .thread-item.active {
+            background: var(--dark-brown);
+            color: var(--gold);
+            border-left: 4px solid var(--gold);
         }
-
-        .chat-item.active {
-            background: rgba(212, 175, 55, 0.1);
-            border-left: 4px solid var(--gold-primary);
-        }
-
-        .chat-item .item-email {
-            font-weight: 600;
-            color: var(--gold-primary);
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .chat-item .item-lastmsg {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .chat-item .item-time {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.4);
-        }
-
-        .admin-empty-state {
+        .admin-main {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            color: var(--text-muted);
-            text-align: center;
-            padding: 40px;
+            background: #FFFDF9;
         }
-
-        .admin-empty-state i {
-            font-size: 4rem;
-            color: var(--gold-primary);
-            margin-bottom: 20px;
-            opacity: 0.7;
-        }
-
-        .admin-empty-state h3 {
-            font-family: 'Cinzel', serif;
-            margin-bottom: 10px;
-        }
-
-        /* Banner Olvasási joghoz */
         .read-only-banner {
-            background: #721c24;
-            color: #f8d7da;
+            background: #7A1E1E;
+            color: #FFD2D2;
             padding: 12px;
             text-align: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border-bottom: 1px solid #f5c6cb;
+            font-weight: bold;
             letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
 
-    <!-- ==================== VIEW 0: LOADING ==================== -->
-    <div id="loading-view" class="view" style="display: flex;">
-        <div class="loader"></div>
-        <p style="font-family: 'Cinzel', serif; color: var(--gold-primary); letter-spacing: 2px;">Rendszer betöltése...</p>
+    <div id="view-auth" class="view-container" style="display: flex;">
+        <div class="auth-card">
+            <h2 id="auth-title">Családfakutatás</h2>
+            <input type="email" id="auth-email" placeholder="E-mail cím">
+            <input type="password" id="auth-password" placeholder="Jelszó">
+            <button class="btn-gold" id="auth-submit-btn" onclick="handleAuth()">Bejelentkezés</button>
+            <button class="btn-google" onclick="loginWithGoogle()">Belépés Google fiókkal</button>
+            <span class="toggle-link" id="auth-toggle" onclick="toggleAuthMode()">Nincs még fiókja? Regisztráció</span>
+        </div>
     </div>
 
-    <!-- ==================== VIEW 1: AUTH (BEJELENTKEZÉS / REGISZTRÁCIÓ) ==================== -->
-    <div id="auth-view" class="view">
-        <div class="auth-wrapper">
-            <div class="auth-card">
-                <div class="brand-title">Családfakutatás</div>
-                <div class="brand-subtitle">Örökség & Kapcsolat</div>
-                
-                <h3 id="auth-header">Bejelentkezés</h3>
-                
-                <div class="input-group">
-                    <i class="fa-solid fa-envelope"></i>
-                    <input type="email" id="auth-email" class="auth-input" placeholder="E-mail cím">
-                </div>
-                
-                <div class="input-group">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="auth-password" class="auth-input" placeholder="Jelszó">
-                </div>
-                
-                <div class="auth-buttons">
-                    <button class="btn-gold" id="auth-btn" onclick="executeAuth()">Bejelentkezés</button>
-                    <button class="btn-gold btn-google" onclick="loginWithGoogle()">
-                        <i class="fa-brands fa-google"></i> Belépés Google Fiókkal
-                    </button>
-                </div>
-                
-                <a class="toggle-auth" id="toggle-auth-link" onclick="toggleAuthMode()">
-                    Még nincs fiókja? Regisztráljon itt
-                </a>
+    <div id="view-chat" class="view-container">
+        <div class="chat-layout">
+            <div class="panel-header">
+                <h3 style="margin:0;">Kapcsolatfelvétel</h3>
+                <span id="client-user-email" style="color: var(--light-gold);"></span>
+                <button class="logout-btn" onclick="logout()">Kijelentkezés</button>
+            </div>
+            <div class="chat-area" id="client-chat-area"></div>
+            <div class="input-bar">
+                <input type="text" id="client-msg-input" placeholder="Írja meg üzenetét itt..." onkeypress="if(event.key === 'Enter') sendClientMsg()">
+                <button class="btn-gold" onclick="sendClientMsg()">Küldés</button>
             </div>
         </div>
     </div>
 
-    <!-- ==================== VIEW 2: CLIENT CHAT (ÜGYFÉL FELÜLET) ==================== -->
-    <div id="chat-view" class="view">
-        <div class="app-container" style="flex-direction: column;">
-            <div class="app-header">
-                <div class="logo-area">
-                    <i class="fa-solid fa-tree" style="color: var(--gold-primary); font-size: 1.5rem;"></i>
-                    <h1>Családfakutatás</h1>
-                </div>
-                <div class="user-info">
-                    <span id="client-user-display">betöltés...</span>
-                    <button class="logout-btn" onclick="logout()">Kijelentkezés</button>
-                </div>
-            </div>
-
-            <div class="chat-main-area">
-                <div class="chat-messages-container" id="client-messages-container">
-                    <!-- Itt fognak megjelenni az üzenetek -->
-                </div>
-                
-                <div class="chat-input-wrapper">
-                    <input type="text" id="client-msg-input" placeholder="Írja meg kérdését vagy üzenetét ide..." onkeypress="if(event.key === 'Enter') sendClientMsg()">
-                    <button class="btn-gold" onclick="sendClientMsg()">
-                        <i class="fa-solid fa-paper-plane"></i> Küldés
-                    </button>
-                </div>
-            </div>
+    <div id="view-admin" class="view-container">
+        <div class="panel-header">
+            <h3 style="margin:0; letter-spacing: 2px;">ADMINISZTRÁCIÓS PANEL</h3>
+            <span id="admin-user-email" style="color: var(--gold);"></span>
+            <button class="logout-btn" onclick="logout()">Kilépés</button>
         </div>
-    </div>
-
-    <!-- ==================== VIEW 3: ADMIN VIEW (ADMIN FELÜLET) ==================== -->
-    <div id="admin-view" class="view">
-        <div class="app-container">
-            
-            <!-- Admin Bal oldali sáv (Ügyfelek listája) -->
-            <div class="admin-sidebar">
-                <div class="sidebar-title">
-                    <i class="fa-solid fa-users-gear" style="margin-right: 10px;"></i>Csevegések
+        <div class="admin-layout">
+            <div class="sidebar" id="admin-sidebar">
                 </div>
-                <div class="chat-list" id="admin-chat-list">
-                    <!-- Aktív beszélgető ügyfelek -->
+            <div class="admin-main">
+                <div id="admin-notice" class="read-only-banner" style="display: none;">CSAK MEGTEKINTÉSI JOG (ÍRÁS LETILTVA)</div>
+                <div class="chat-area" id="admin-chat-area" style="flex:1;">
+                    <div style="text-align: center; color: #aaa; margin-top: 50px;">Kérjük, válasszon egy ügyfelet a bal oldali listából.</div>
                 </div>
-                <div style="padding: 15px; border-top: 1px solid var(--border-gold); background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center;">
-                    <span id="admin-user-display" style="font-size: 0.85rem; color: var(--gold-primary);">Admin</span>
-                    <button class="logout-btn" onclick="logout()" style="padding: 5px 10px; font-size: 0.8rem;">Kilépés</button>
+                <div class="input-bar" id="admin-input-bar">
+                    <input type="text" id="admin-msg-input" placeholder="Válasz küldése az ügyfélnek..." onkeypress="if(event.key === 'Enter') sendAdminMsg()">
+                    <button class="btn-gold" onclick="sendAdminMsg()">Válasz</button>
                 </div>
             </div>
-
-            <!-- Admin Jobb oldali sáv (Aktív csevegés) -->
-            <div class="chat-main-area">
-                <div class="app-header" style="height: 60px; padding: 0 20px;">
-                    <div id="admin-active-chat-header" style="font-family: 'Cinzel', serif; color: var(--gold-primary); font-weight: 600; letter-spacing: 1px;">
-                        Kérem, válasszon ki egy ügyfelet...
-                    </div>
-                </div>
-
-                <div id="admin-read-only-banner" class="read-only-banner" style="display: none;">
-                    <i class="fa-solid fa-eye" style="margin-right: 10px;"></i>Csak megtekintési jogosultság (Üzenetküldés letiltva)
-                </div>
-
-                <div class="chat-messages-container" id="admin-messages-container">
-                    <div class="admin-empty-state">
-                        <i class="fa-solid fa-tree"></i>
-                        <h3>Üdvözöljük az Adminisztrációs felületen</h3>
-                        <p>Kattintson a bal oldali listában lévő egyik ügyfélre a csevegés megnyitásához.</p>
-                    </div>
-                </div>
-
-                <div class="chat-input-wrapper" id="admin-input-wrapper">
-                    <input type="text" id="admin-msg-input" placeholder="Válasz írása az ügyfélnek..." onkeypress="if(event.key === 'Enter') sendAdminMsg()">
-                    <button class="btn-gold" onclick="sendAdminMsg()">
-                        <i class="fa-solid fa-reply"></i> Válasz
-                    </button>
-                </div>
-            </div>
-
         </div>
     </div>
 
     <script>
-        // ==================== CONFIGURATION ====================
+        // Firebase Konfigurációd
         const firebaseConfig = {
           apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
           authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
           projectId: "csaladi-naptar-9f58a",
           storageBucket: "csaladi-naptar-9f58a.firebasestorage.app",
           messagingSenderId: "299884351675",
-          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e",
-          measurementId: "G-MN6K29BWJD"
+          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e"
         };
 
-        // Firebase indítása
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Rendszer állapot
-        let currentUser = null;
-        let activeAdminChatId = null; // Melyik ügyfél chatje van épp nyitva az adminnál
         let isLoginMode = true;
-        
-        // Listenerek leiratkozáshoz (fontos memóriaszivárgás ellen)
-        let activeClientListener = null;
-        let activeAdminMsgListener = null;
+        let currentUser = null;
+        let activeAdminChatId = null;
+        let adminMessagesListener = null;
 
-        // ==================== AUTH CONTROLLER ====================
-        
-        // UI Választó mód váltás
-        function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            document.getElementById('auth-header').innerText = isLoginMode ? 'Bejelentkezés' : 'Regisztráció';
-            document.getElementById('auth-btn').innerText = isLoginMode ? 'Bejelentkezés' : 'Regisztráció';
-            document.getElementById('toggle-auth-link').innerText = isLoginMode ? 'Még nincs fiókja? Regisztráljon itt' : 'Már van fiókja? Jelentkezzen be';
-        }
-
-        // Auth folyamat indítása
-        function executeAuth() {
-            const email = document.getElementById('auth-email').value.trim();
-            const password = document.getElementById('auth-password').value;
-
-            if (!email || !password) {
-                return alert('Kérjük, minden mezőt töltsön ki!');
-            }
-
-            if (isLoginMode) {
-                auth.signInWithEmailAndPassword(email, password)
-                    .catch(err => alert('Bejelentkezési hiba: ' + err.message));
-            } else {
-                auth.createUserWithEmailAndPassword(email, password)
-                    .catch(err => alert('Regisztrációs hiba: ' + err.message));
-            }
-        }
-
-        // Google Bejelentkezés
-        function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider)
-                .catch(err => alert('Google Bejelentkezési hiba: ' + err.message));
-        }
-
-        // Kijelentkezés
-        function logout() {
-            // Aktív adatbázis figyelők leállítása kilépéskor
-            if(activeClientListener) activeClientListener();
-            if(activeAdminMsgListener) activeAdminMsgListener();
-            
-            auth.signOut().then(() => {
-                showView('auth-view');
-            });
-        }
-
-        // ==================== ROUTER & AUTH WATCHER ====================
-        
-        // Automatikus jogosultság és nézetválasztó
+        // --- AUTH AUTOMATIKUS JOGOSULTSÁG-KEZELŐ ---
         auth.onAuthStateChanged(user => {
-            if (user) {
+            // Minden nézet elrejtése alaphelyzetben
+            document.getElementById('view-auth').style.display = 'none';
+            document.getElementById('view-chat').style.display = 'none';
+            document.getElementById('view-admin').style.display = 'none';
+
+            if (!user) {
+                document.getElementById('view-auth').style.display = 'flex';
+                currentUser = null;
+            } else {
                 currentUser = user;
-                
-                // Admin jogosultság ellenőrzés (admin@csaladfakutatas.hu VAGY admin.permission)
-                const isFullAdmin = (user.email === 'admin@csaladfakutatas.hu');
-                const isReadOnlyAdmin = (
-                    user.email === 'admin.permission@csaladfakutatas.hu' || 
-                    user.email === 'admin.permission@csaladfakutatás.hu'
-                );
+                const email = user.email.toLowerCase();
 
-                if (isFullAdmin || isReadOnlyAdmin) {
-                    // Admin felület betöltése
-                    document.getElementById('admin-user-display').innerText = user.email.split('@')[0];
+                if (email === 'admin@csaladfakutatas.hu' || email === 'admin.permission@csaladfakutatas.hu' || email === 'admin.permission@csaladfakutatás.hu') {
+                    // ADMIN FELÜLET
+                    document.getElementById('view-admin').style.display = 'block';
+                    document.getElementById('admin-user-email').innerText = user.email;
                     
-                    if (isReadOnlyAdmin) {
-                        document.getElementById('admin-input-wrapper').style.display = 'none';
-                        document.getElementById('admin-read-only-banner').style.display = 'block';
+                    // Írási jogok letiltása ha olvasó admin
+                    if (email.includes('permission')) {
+                        document.getElementById('admin-input-bar').style.display = 'none';
+                        document.getElementById('admin-notice').style.display = 'block';
                     } else {
-                        document.getElementById('admin-input-wrapper').style.display = 'flex';
-                        document.getElementById('admin-read-only-banner').style.display = 'none';
+                        document.getElementById('admin-input-bar').style.display = 'flex';
+                        document.getElementById('admin-notice').style.display = 'none';
                     }
-
-                    showView('admin-view');
-                    initAdminDashboard();
+                    initAdminPanel();
                 } else {
-                    // Ügyfél felület betöltése
-                    document.getElementById('client-user-display').innerText = user.email;
-                    showView('chat-view');
+                    // ÜGYFÉL CHAT FELÜLET
+                    document.getElementById('view-chat').style.display = 'block';
+                    document.getElementById('client-user-email').innerText = user.email;
                     initClientChat();
                 }
-            } else {
-                currentUser = null;
-                showView('auth-view');
             }
         });
 
-        // Nézetek közötti ugrás
-        function showView(viewId) {
-            document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-            document.getElementById(viewId).style.display = 'flex';
+        // --- AUTH MŰVELETEK ---
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? 'Családfakutatás' : 'Regisztráció';
+            document.getElementById('auth-submit-btn').innerText = isLoginMode ? 'Bejelentkezés' : 'Regisztráció indítása';
+            document.getElementById('auth-toggle').innerText = isLoginMode ? 'Nincs még fiókja? Regisztráció' : 'Már van fiókom? Bejelentkezés';
         }
 
+        function handleAuth() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            if(!email || !password) return alert('Kérjük, töltsön ki minden mezőt!');
 
-        // ==================== CLIENT CHAT LOGIC ====================
+            if(isLoginMode) {
+                auth.signInWithEmailAndPassword(email, password).catch(err => alert("Hiba: " + err.message));
+            } else {
+                auth.createUserWithEmailAndPassword(email, password).catch(err => alert("Hiba: " + err.message));
+            }
+        }
+
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => alert("Google Hiba: " + err.message));
+        }
+
+        function logout() {
+            if(adminMessagesListener) adminMessagesListener();
+            auth.signOut();
+        }
+
+        // --- ÜGYFÉL CHAT LOGIKA ---
         function initClientChat() {
-            const chatContainer = document.getElementById('client-messages-container');
-            
-            if(activeClientListener) activeClientListener(); // Előző figyelő törlése ha volt
-
-            // Valós idejű üzenetek lekérdezése az adott ügyfél chatId-ja alapján
-            activeClientListener = db.collection('messages')
-                .where('chatId', '==', currentUser.email)
-                .orderBy('timestamp', 'asc')
-                .onSnapshot(snapshot => {
-                    chatContainer.innerHTML = '';
-                    
-                    if (snapshot.empty) {
-                        chatContainer.innerHTML = `
-                            <div class="admin-empty-state" style="height: 100%;">
-                                <i class="fa-solid fa-tree" style="font-size: 3rem;"></i>
-                                <h3 style="font-size: 1.2rem;">Üdvözöljük!</h3>
-                                <p>Kezdeményezze a kapcsolatfelvételt az alábbi üzenetküldővel. Szakértőnk hamarosan válaszolni fog.</p>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        const isClientSender = (data.sender === currentUser.email);
-                        
-                        const bubble = document.createElement('div');
-                        bubble.className = `msg-bubble ${isClientSender ? 'msg-client' : 'msg-admin'}`;
-                        
-                        const timeStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString('hu-HU', {hour: '2-digit', minute:'2-digit'}) : 'Most';
-                        
-                        bubble.innerHTML = `
-                            <div>${escapeHTML(data.text)}</div>
-                            <span class="msg-time">${timeStr}</span>
-                        `;
-                        
-                        chatContainer.appendChild(bubble);
-                    });
-                    
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }, err => {
-                    console.error("Hiba az üzenetek betöltésekor: ", err);
-                });
+            db.collection("messages")
+              .where("chatId", "==", currentUser.email)
+              .orderBy("timestamp", "asc")
+              .onSnapshot(snapshot => {
+                  const area = document.getElementById('client-chat-area');
+                  area.innerHTML = '';
+                  snapshot.forEach(doc => {
+                      const data = doc.data();
+                      const div = document.createElement('div');
+                      div.className = `msg-bubble ${data.sender === currentUser.email ? 'msg-client' : 'msg-admin'}`;
+                      div.innerText = data.text;
+                      area.appendChild(div);
+                  });
+                  area.scrollTop = area.scrollHeight;
+              });
         }
 
-        // Ügyfél üzenet küldése
         function sendClientMsg() {
             const input = document.getElementById('client-msg-input');
             const text = input.value.trim();
-            if (!text) return;
+            if(!text) return;
 
-            const chatId = currentUser.email;
-
-            // 1. Mentés az üzenet listába
+            // Első lépés: Üzenet mentése a szabályoknak megfelelő struktúrában
             db.collection("messages").add({
-                chatId: chatId,
+                chatId: currentUser.email,
                 sender: currentUser.email,
                 text: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
-                // 2. Csatlakozó Chat meta-adat frissítése/létrehozása a Firestore-ban (hogy az admin azonnal lássa)
-                return db.collection("chats").doc(chatId).set({
-                    clientEmail: chatId,
+                // Második lépés: A chat-lista frissítése a sidebarhoz
+                return db.collection("chats").doc(currentUser.email).set({
+                    chatId: currentUser.email,
                     lastMessage: text,
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
             }).catch(err => {
+                console.error(err);
                 alert("Hiba történt az üzenet küldésekor: " + err.message);
             });
 
             input.value = '';
         }
 
-
-        // ==================== ADMIN DASHBOARD LOGIC ====================
-        let chatsListListener = null;
-
-        function initAdminDashboard() {
-            const chatListContainer = document.getElementById('admin-chat-list');
-            
-            if(chatsListListener) chatsListListener();
-
-            // Valós idejű csevegési listák figyelése a chats gyűjteményben
-            chatsListListener = db.collection('chats')
-                .orderBy('lastUpdated', 'desc')
-                .onSnapshot(snapshot => {
-                    chatListContainer.innerHTML = '';
-                    
-                    if (snapshot.empty) {
-                        chatListContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">Nincs még beérkező csevegés.</div>';
-                        return;
-                    }
-
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        const chatId = doc.id;
-                        
-                        const item = document.createElement('div');
-                        item.className = `chat-item ${chatId === activeAdminChatId ? 'active' : ''}`;
-                        
-                        const timeStr = data.lastUpdated ? new Date(data.lastUpdated.toDate()).toLocaleDateString('hu-HU', {month: 'short', day: 'numeric'}) : '';
-
-                        item.innerHTML = `
-                            <div class="item-email">${chatId}</div>
-                            <div class="item-lastmsg">${escapeHTML(data.lastMessage || '')}</div>
-                            <div class="item-time">${timeStr}</div>
-                        `;
-
-                        item.onclick = () => selectAdminChat(chatId);
-                        chatListContainer.appendChild(item);
-                    });
-                });
+        // --- ADMIN PANELS LOGIKA ---
+        function initAdminPanel() {
+            db.collection("chats")
+              .orderBy("timestamp", "desc")
+              .onSnapshot(snapshot => {
+                  const sidebar = document.getElementById('admin-sidebar');
+                  sidebar.innerHTML = '';
+                  snapshot.forEach(doc => {
+                      const data = doc.data();
+                      const div = document.createElement('div');
+                      div.className = `thread-item ${activeAdminChatId === data.chatId ? 'active' : ''}`;
+                      div.innerText = data.chatId;
+                      div.onclick = () => selectAdminChat(data.chatId, div);
+                      sidebar.appendChild(div);
+                  });
+              });
         }
 
-        // Egy konkrét ügyfél kiválasztása
-        function selectAdminChat(chatId) {
+        function selectAdminChat(chatId, element) {
             activeAdminChatId = chatId;
-            
-            // Aktív stílus frissítése a listában
-            document.querySelectorAll('.chat-item').forEach(item => {
-                if (item.querySelector('.item-email').innerText === chatId) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
-            });
+            document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
 
-            document.getElementById('admin-active-chat-header').innerText = `Ügyfél: ${chatId}`;
-            
-            const msgContainer = document.getElementById('admin-messages-container');
-            
-            if(activeAdminMsgListener) activeAdminMsgListener();
+            if(adminMessagesListener) adminMessagesListener();
 
-            // Üzenetek figyelése az adott ügyfél száljához
-            activeAdminMsgListener = db.collection('messages')
-                .where('chatId', '==', chatId)
-                .orderBy('timestamp', 'asc')
-                .onSnapshot(snapshot => {
-                    msgContainer.innerHTML = '';
-                    
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        // Ha a feladó megegyezik a chatId-val (az ügyfél e-mailjével), akkor ügyfél küldte
-                        const isClient = (data.sender === chatId);
-                        
-                        const bubble = document.createElement('div');
-                        bubble.className = `msg-bubble ${isClient ? 'msg-client' : 'msg-admin'}`;
-                        
-                        const timeStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString('hu-HU', {hour: '2-digit', minute:'2-digit'}) : 'Most';
-
-                        bubble.innerHTML = `
-                            <div>${escapeHTML(data.text)}</div>
-                            <span class="msg-time">${timeStr}</span>
-                        `;
-                        
-                        msgContainer.appendChild(bubble);
-                    });
-                    
-                    msgContainer.scrollTop = msgContainer.scrollHeight;
-                });
+            adminMessagesListener = db.collection("messages")
+              .where("chatId", "==", chatId)
+              .orderBy("timestamp", "asc")
+              .onSnapshot(snapshot => {
+                  const area = document.getElementById('admin-chat-area');
+                  area.innerHTML = '';
+                  snapshot.forEach(doc => {
+                      const data = doc.data();
+                      const div = document.createElement('div');
+                      div.className = `msg-bubble ${data.sender === chatId ? 'msg-admin' : 'msg-client'}`; // admin nézetben fordított színek az átláthatóságért
+                      div.innerText = data.text;
+                      area.appendChild(div);
+                  });
+                  area.scrollTop = area.scrollHeight;
+              });
         }
 
-        // Admin válasz küldése
         function sendAdminMsg() {
-            // Megtekintési jogú admin szűrése frontend oldalon is
-            if (currentUser.email === 'admin.permission@csaladfakutatas.hu' || currentUser.email === 'admin.permission@csaladfakutatás.hu') {
-                return alert('Nincs jogosultsága üzenetküldésre!');
-            }
-
-            if (!activeAdminChatId) {
-                return alert('Kérjük, válasszon ki egy ügyfelet a bal oldali listából!');
-            }
+            if(currentUser.email.toLowerCase().includes('permission')) return; // Olvasó jogú admin nem küldhet
+            if(!activeAdminChatId) return alert('Válasszon ki egy beszélgetést!');
 
             const input = document.getElementById('admin-msg-input');
             const text = input.value.trim();
-            if (!text) return;
+            if(!text) return;
 
-            // 1. Mentés a messages gyűjteménybe
             db.collection("messages").add({
                 chatId: activeAdminChatId,
                 sender: currentUser.email,
                 text: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
-                // 2. Csevegési szál meta-adat frissítése
-                return db.collection("chats").doc(activeAdminChatId).set({
+                return db.collection("chats").doc(activeAdminChatId).update({
                     lastMessage: text,
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            }).catch(err => {
-                alert("Hiba a válasz küldésekor: " + err.message);
-            });
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }).catch(err => alert("Hiba küldéskor: " + err.message));
 
             input.value = '';
-        }
-
-        // Segédfunkció az XSS támadások ellen (HTML escape)
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
         }
     </script>
 </body>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Családfakutatás - Vizuális 2D Fa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1E130C;
+            --bg-medium: #2C1A11;
+            --bg-light: #3D281D;
+            --gold-primary: #D4AF37;
+            --gold-hover: #F3E5AB;
+            --text-white: #F9F6F0;
+            --text-muted: #D1C7BD;
+            --border-gold: rgba(212, 175, 55, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-white); min-height: 100vh; display: flex; flex-direction: column; overflow-x: auto; }
+        
+        .header {
+            background: var(--bg-medium); border-bottom: 1px solid var(--border-gold);
+            height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; position: sticky; top:0; z-index: 100;
+        }
+        .header h1 { font-family: 'Cinzel', serif; color: var(--gold-primary); font-size: 1.4rem; }
+        .btn-back {
+            background: transparent; border: 1px solid var(--gold-primary); color: var(--gold-primary);
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; text-decoration: none; font-size: 0.9rem;
+        }
+
+        /* 2D Térkép Terület */
+        .tree-viewport {
+            flex: 1; min-height: calc(100vh - 70px); padding: 60px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; min-width: 1200px;
+        }
+
+        /* SVG Vonal Réteg */
+        #svg-lines {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+
+        /* Generációs Szintek */
+        .generation-level {
+            display: flex; justify-content: center; align-items: center;
+            gap: 40px; margin: 50px 0; width: 100%; z-index: 2; position: relative;
+        }
+
+        /* Node / Személy Kártyák */
+        .node-card {
+            background: var(--bg-medium);
+            border: 2px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 15px 20px;
+            min-width: 200px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: all 0.3s;
+        }
+        .node-card.main-node {
+            border-color: var(--gold-primary);
+            background: linear-gradient(135deg, var(--bg-medium) 0%, var(--bg-light) 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+        .node-name { font-family: 'Cinzel', serif; font-weight: 700; color: var(--gold-primary); margin-bottom: 5px; }
+        .main-node .node-name { color: var(--text-white); }
+        .node-relation { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
+        .node-dates { font-size: 0.8rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-network-wired"></i> Vizuális 2D Családfa</h1>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Vissza</a>
+    </div>
+
+    <div class="tree-viewport">
+        <svg id="svg-lines"></svg>
+
+        <div class="generation-level" id="lvl-parents"></div>
+
+        <div class="generation-level" id="lvl-center">
+            <div class="node-card main-node" id="node-self">
+                <div class="node-relation">Ön (Kutató)</div>
+                <div class="node-name" id="self-email-name">Betöltés...</div>
+                <div class="node-dates">Központi profil</div>
+            </div>
+        </div>
+
+        <div class="generation-level" id="lvl-children"></div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
+          authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
+          projectId: "csaladi-naptar-9f58a",
+          storageBucket: "csaladi-naptar-9f58a.firebasestorage.app",
+          messagingSenderId: "299884351675",
+          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) { window.location.href = "index.html"; }
+            else {
+                document.getElementById('self-email-name').innerText = user.email.split('@')[0];
+                loadVisualTree(user.email.toLowerCase());
+            }
+        });
+
+        function loadVisualTree(email) {
+            db.collection("family_trees").where("userEmail", "==", email).onSnapshot(snapshot => {
+                const parentsLvl = document.getElementById('lvl-parents');
+                const centerLvl = document.getElementById('lvl-center');
+                const childrenLvl = document.getElementById('lvl-children');
+
+                // Takarítás (megtartva a 'Self' csomópontot)
+                parentsLvl.innerHTML = '';
+                childrenLvl.innerHTML = '';
+                document.querySelectorAll('.dynamic-node').forEach(el => el.remove());
+
+                snapshot.forEach(doc => {
+                    const m = doc.data();
+                    const card = document.createElement('div');
+                    card.className = `node-card dynamic-node`;
+                    card.id = `node-${doc.id}`;
+                    card.innerHTML = `
+                        <div class="node-relation">${getRelationLabel(m.relationType)}</div>
+                        <div class="node-name">${m.name}</div>
+                        <div class="node-dates">${m.birthDate || ''} ${m.deathDate ? ' - ' + m.deathDate : ''}</div>
+                    `;
+
+                    if(m.relationType === 'szulo') parentsLvl.appendChild(card);
+                    if(m.relationType === 'hazastars' || m.relationType === 'testver') centerLvl.appendChild(card);
+                    if(m.relationType === 'gyermek') childrenLvl.appendChild(card);
+                });
+
+                // Vonalak újrarajzolása kis csúsztatással, hogy a DOM elemek elhelyezkedjenek
+                setTimeout(drawConnectiveLines, 300);
+            });
+        }
+
+        function getRelationLabel(type) {
+            return { szulo: 'Szülő/Ős', hazastars: 'Házastárs', testver: 'Testvér', gyermek: 'Gyermek' }[type] || '';
+        }
+
+        // --- DINAMIKUS 2D VONALRAJZOLÓ LOGIKA ---
+        function drawConnectiveLines() {
+            const svg = document.getElementById('svg-lines');
+            svg.innerHTML = ''; // Régi vonalak törlése
+            
+            const selfCard = document.getElementById('node-self');
+            if(!selfCard) return;
+
+            const selfRect = selfCard.getBoundingClientRect();
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+            const selfX = selfRect.left + scrollLeft + (selfRect.width / 2);
+            const selfY = selfRect.top + scrollTop + (selfRect.height / 2);
+
+            document.querySelectorAll('.dynamic-node').forEach(node => {
+                const nodeRect = node.getBoundingClientRect();
+                const nodeX = nodeRect.left + scrollLeft + (nodeRect.width / 2);
+                const nodeY = nodeRect.top + scrollTop + (nodeRect.height / 2);
+
+                // Új SVG Path generálása (Selymes, derékszögű elágazásokkal)
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                
+                // Középvonalas töréspont kalkuláció (ortogonális elrendezés)
+                const midY = (selfY + nodeY) / 2;
+                const dAttribute = `M ${selfX} ${selfY} L ${selfX} ${midY} L ${nodeX} ${midY} L ${nodeX} ${nodeY}`;
+
+                path.setAttribute("d", dAttribute);
+                path.setAttribute("stroke", "#D4AF37");
+                path.setAttribute("stroke-width", "2");
+                path.setAttribute("fill", "none");
+                path.setAttribute("style", "opacity: 0.6;");
+                
+                svg.appendChild(path);
+            });
+        }
+
+        // Ablak átméretezés esetén vonalak újraszámolása
+        window.onresize = drawConnectiveLines;
+    </script>
+</body>
+</html>

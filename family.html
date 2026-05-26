@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Családfakutatás - Családfám</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1E130C;
+            --bg-medium: #2C1A11;
+            --bg-light: #3D281D;
+            --gold-primary: #D4AF37;
+            --gold-hover: #F3E5AB;
+            --text-white: #F9F6F0;
+            --text-muted: #D1C7BD;
+            --border-gold: rgba(212, 175, 55, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-white); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .header {
+            background: var(--bg-medium);
+            border-bottom: 1px solid var(--border-gold);
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .header h1 { font-family: 'Cinzel', serif; color: var(--gold-primary); font-size: 1.4rem; letter-spacing: 1px; }
+        
+        .btn-back {
+            background: transparent; border: 1px solid var(--gold-primary); color: var(--gold-primary);
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; text-decoration: none; font-size: 0.9rem;
+        }
+
+        .main-container { flex: 1; padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+        .tree-title { font-family: 'Cinzel', serif; text-align: center; color: var(--gold-primary); margin-bottom: 40px; letter-spacing: 2px; }
+        
+        /* Vizuális kategória blokkok */
+        .relation-section {
+            background: var(--bg-medium);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .section-title {
+            font-family: 'Cinzel', serif;
+            color: var(--gold-primary);
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-gold);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* Rokon kártya dizájn */
+        .member-card {
+            background: var(--bg-light);
+            border: 1px solid transparent;
+            border-left: 4px solid var(--gold-primary);
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        .member-card:hover { transform: translateY(-2px); border-color: var(--border-gold); }
+        .member-name { font-weight: 600; color: var(--text-white); font-size: 1.05rem; margin-bottom: 5px; }
+        .member-details { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+        
+        .empty-notify { color: var(--text-muted); font-style: italic; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-sitemap"></i> Családfám kutatása</h1>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Vissza a Chathez</a>
+    </div>
+
+    <div class="main-container">
+        <h2 class="tree-title" id="user-tree-title">Saját Családfa</h2>
+
+        <div class="relation-section">
+            <div class="section-title"><i class="fa-solid fa-arrow-up-prolonged"></i> Szülők / Ősök</div>
+            <div class="grid-container" id="sec-szulo"><div class="empty-notify">Nincs még rögzített adat.</div></div>
+        </div>
+
+        <div class="relation-section">
+            <div class="section-title"><i class="fa-solid fa-heart"></i> Házastárs</div>
+            <div class="grid-container" id="sec-hazastars"><div class="empty-notify">Nincs még rögzített adat.</div></div>
+        </div>
+
+        <div class="relation-section">
+            <div class="section-title"><i class="fa-solid fa-people-arrows"></i> Testvérek</div>
+            <div class="grid-container" id="sec-testver"><div class="empty-notify">Nincs még rögzített adat.</div></div>
+        </div>
+
+        <div class="relation-section">
+            <div class="section-title"><i class="fa-solid fa-child"></i> Gyermekek / Leszármazottak</div>
+            <div class="grid-container" id="sec-gyermek"><div class="empty-notify">Nincs még rögzített adat.</div></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
+          authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
+          projectId: "csaladi-naptar-9f58a",
+          storageBucket: "csaladi-naptar-9f58a.firebasestorage.app",
+          messagingSenderId: "299884351675",
+          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            } else {
+                document.getElementById('user-tree-title').innerText = `${user.email} Családfája`;
+                loadFamilyTree(user.email.toLowerCase());
+            }
+        });
+
+        function loadFamilyTree(email) {
+            db.collection("family_trees")
+              .where("userEmail", "==", email)
+              .onSnapshot(snapshot => {
+                  // Mezők alaphelyzetbe állítása
+                  const sections = {
+                      'szulo': document.getElementById('sec-szulo'),
+                      'hazastars': document.getElementById('sec-hazastars'),
+                      'testver': document.getElementById('sec-testver'),
+                      'gyermek': document.getElementById('sec-gyermek')
+                  };
+                  
+                  Object.values(sections).forEach(sec => sec.innerHTML = '');
+
+                  let counts = { szulo: 0, hazastars: 0, testver: 0, gyermek: 0 };
+
+                  snapshot.forEach(doc => {
+                      const m = doc.data();
+                      const type = m.relationType; // szulo, hazastars, testver, gyermek
+
+                      if(sections[type]) {
+                          counts[type]++;
+                          const card = document.createElement('div');
+                          card.className = 'member-card';
+                          card.innerHTML = `
+                              <div class="member-name">${m.name}</div>
+                              <div class="member-details">
+                                  ${m.birthPlace || m.birthDate ? `👶 ${m.birthPlace || ''} ${m.birthDate || ''}<br>` : ''}
+                                  ${m.deathPlace || m.deathDate ? `✝️ ${m.deathPlace || ''} ${m.deathDate || ''}<br>` : ''}
+                                  ${m.note ? `📝 ${m.note}` : ''}
+                              </div>
+                          `;
+                          sections[type].appendChild(card);
+                      }
+                  });
+
+                  // Ha üres maradt egy szekció, jelezzük
+                  Object.keys(sections).forEach(key => {
+                      if(counts[key] === 0) {
+                          sections[key].innerHTML = '<div class="empty-notify">Nincs még rögzített adat ebben a kategóriában.</div>';
+                      }
+                  });
+              });
+        }
+    </script>
+</body>
+</html>

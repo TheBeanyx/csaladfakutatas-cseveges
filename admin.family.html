@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Családfák Kezelése</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1E130C;
+            --bg-medium: #2C1A11;
+            --bg-light: #3D281D;
+            --gold-primary: #D4AF37;
+            --gold-hover: #F3E5AB;
+            --gold-dark: #AA7C11;
+            --text-white: #F9F6F0;
+            --text-muted: #D1C7BD;
+            --border-gold: rgba(212, 175, 55, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-white); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .header {
+            background: var(--bg-medium); border-bottom: 1px solid var(--border-gold);
+            height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; flex-shrink: 0;
+        }
+        .header h1 { font-family: 'Cinzel', serif; color: var(--gold-primary); font-size: 1.4rem; }
+        .btn-back {
+            background: transparent; border: 1px solid var(--gold-primary); color: var(--gold-primary);
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; text-decoration: none;
+        }
+
+        .admin-layout { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Bal oldali lista */
+        .sidebar { width: 320px; background: var(--bg-medium); border-right: 1px solid var(--border-gold); display: flex; flex-direction: column; }
+        .sidebar-title { padding: 20px; background: rgba(30, 19, 12, 0.5); font-family: 'Cinzel', serif; color: var(--gold-primary); border-bottom: 1px solid var(--border-gold); text-align: center; }
+        .client-list { flex: 1; overflow-y: auto; }
+        .client-item { padding: 18px 20px; border-bottom: 1px solid rgba(212, 175, 55, 0.1); cursor: pointer; transition: background 0.2s; }
+        .client-item:hover { background: rgba(212, 175, 55, 0.05); }
+        .client-item.active { background: rgba(212, 175, 55, 0.1); border-left: 4px solid var(--gold-primary); color: var(--gold-primary); font-weight: 600; }
+
+        /* Jobb oldali munkaterület */
+        .main-workspace { flex: 1; background: radial-gradient(circle, var(--bg-light) 0%, var(--bg-dark) 100%); display: flex; flex-direction: column; overflow-y: auto; padding: 40px; }
+        
+        .form-section { background: var(--bg-medium); border: 1px solid var(--border-gold); border-radius: 8px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+        .form-section h3 { font-family: 'Cinzel', serif; color: var(--gold-primary); margin-bottom: 20px; }
+        
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group.full-width { grid-column: span 2; }
+        
+        label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        input, select, textarea {
+            padding: 12px; background: var(--bg-dark); border: 1px solid var(--border-gold); border-radius: 4px; color: var(--text-white); outline: none; font-size: 0.95rem;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--gold-primary); }
+
+        .btn-gold {
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%); color: var(--bg-dark);
+            border: none; border-radius: 4px; padding: 14px; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-top: 15px; transition: all 0.3s;
+        }
+        .btn-gold:hover { background: linear-gradient(135deg, var(--gold-hover) 0%, var(--gold-primary) 100%); box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 15px; }
+        .m-card { background: var(--bg-dark); border: 1px solid var(--border-gold); padding: 12px; border-radius: 4px; position: relative; }
+        .btn-delete { position: absolute; top: 10px; right: 10px; color: #d9534f; cursor: pointer; background: transparent; border: none; }
+        
+        .empty-state { text-align: center; color: var(--text-muted); padding: 50px 0; font-family: 'Cinzel', serif; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-folder-tree"></i> Adminisztráció - Családfák Szerkesztése</h1>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Vissza az Admin Chathez</a>
+    </div>
+
+    <div class="admin-layout">
+        <div class="sidebar">
+            <div class="sidebar-title">Ügyfelek listája</div>
+            <div class="client-list" id="admin-client-list"></div>
+        </div>
+
+        <div class="main-workspace" id="workspace-content">
+            <div class="empty-state">
+                <i class="fa-solid fa-network-wired" style="font-size: 4rem; color: var(--gold-primary); margin-bottom: 20px; opacity: 0.5;"></i>
+                <h2>Nincs kiválasztott ügyfél</h2>
+                <p>Kérjük, válasszon egy e-mail címet a bal oldali listából a családfa szerkesztéséhez.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
+          authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
+          projectId: "csaladi-naptar-9f58a",
+          storageBucket: "csaladi-naptar-9f58a.firebasestorage.app",
+          messagingSenderId: "299884351675",
+          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let selectedClientEmail = null;
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) { window.location.href = "index.html"; }
+            else { loadClientList(); }
+        });
+
+        // Ügyfelek betöltése a meglévő chats kollekcióból
+        function loadClientList() {
+            db.collection("chats").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                const list = document.getElementById('admin-client-list');
+                list.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = `client-item ${selectedClientEmail === data.chatId ? 'active' : ''}`;
+                    div.innerText = data.chatId;
+                    div.onclick = () => selectClient(data.chatId, div);
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        function selectClient(email, element) {
+            selectedClientEmail = email;
+            document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            renderWorkspace();
+        }
+
+        function renderWorkspace() {
+            const container = document.getElementById('workspace-content');
+            container.innerHTML = `
+                <div class="form-section">
+                    <h3>Új családtag hozzáadása: ${selectedClientEmail}</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Rokon Teljes Neve</label>
+                            <input type="text" id="m-name" placeholder="Pl: Kovács János">
+                        </div>
+                        <div class="form-group">
+                            <label>Rokonsági Kapcsolat Típusa</label>
+                            <select id="m-relation">
+                                <option value="szulo">Szülő / Ős</option>
+                                <option value="hazastars">Házastárs</option>
+                                <option value="testver">Testvér</option>
+                                <option value="gyermek">Gyermek</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Születési hely és idő</label>
+                            <input type="text" id="m-birth" placeholder="Budapest, 1956.02.12">
+                        </div>
+                        <div class="form-group">
+                            <label>Halálozási hely és idő (ha elhunyt)</label>
+                            <input type="text" id="m-death" placeholder="Debrecen, 2018.11.05">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Megjegyzés / Kutatási jegyzet</label>
+                            <textarea id="m-note" rows="2" placeholder="Érdekességek, foglalkozás, egyéb adatok..."></textarea>
+                        </div>
+                    </div>
+                    <button class="btn-gold" style="width:100%" onclick="saveMember()">Rokon Mentése az Adatbázisba</button>
+                </div>
+
+                <div class="form-section">
+                    <h3>Eddig rögzített tagok listája</h3>
+                    <div class="preview-grid" id="admin-members-preview"></div>
+                </div>
+            `;
+            loadCurrentMembers();
+        }
+
+        function saveMember() {
+            const name = document.getElementById('m-name').value.trim();
+            const relationType = document.getElementById('m-relation').value;
+            const birth = document.getElementById('m-birth').value.trim();
+            const death = document.getElementById('m-death').value.trim();
+            const note = document.getElementById('m-note').value.trim();
+
+            if(!name) return alert("A név megadása kötelező!");
+
+            db.collection("family_trees").add({
+                userEmail: selectedClientEmail,
+                name: name,
+                relationType: relationType,
+                birthDate: birth,
+                deathDate: death,
+                note: note,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                alert("Rokon sikeresen hozzáadva!");
+                document.getElementById('m-name').value = '';
+                document.getElementById('m-birth').value = '';
+                document.getElementById('m-death').value = '';
+                document.getElementById('m-note').value = '';
+            }).catch(err => alert("Hiba történt: " + err.message));
+        }
+
+        function loadCurrentMembers() {
+            db.collection("family_trees")
+              .where("userEmail", "==", selectedClientEmail)
+              .onSnapshot(snapshot => {
+                  const previewGrid = document.getElementById('admin-members-preview');
+                  if(!previewGrid) return;
+                  previewGrid.innerHTML = '';
+                  
+                  if(snapshot.empty) {
+                      previewGrid.innerHTML = '<div style="color:var(--text-muted);font-style:italic;">Még nem adtak hozzá családtagot ehhez az ügyfélhez.</div>';
+                  }
+
+                  snapshot.forEach(doc => {
+                      const data = doc.data();
+                      const div = document.createElement('div');
+                      div.className = 'm-card';
+                      
+                      let typeText = { szulo: 'Szülő', hazastars: 'Házastárs', testver: 'Testvér', gyermek: 'Gyermek' }[data.relationType];
+
+                      div.innerHTML = `
+                          <button class="btn-delete" onclick="deleteMember('${doc.id}')"><i class="fa-solid fa-trash"></i></button>
+                          <strong style="color:var(--gold-primary); d-block; margin-bottom:3px;">${data.name}</strong>
+                          <div style="font-size:0.8rem; color:var(--text-muted)">
+                              Típus: ${typeText}<br>
+                              ${data.birthDate ? `Szül: ${data.birthDate}<br>` : ''}
+                          </div>
+                      `;
+                      previewGrid.appendChild(div);
+                  });
+              });
+        }
+
+        function deleteMember(id) {
+            if(confirm("Biztosan törölni szeretné ezt a családtagot?")) {
+                db.collection("family_trees").doc(id).delete();
+            }
+        }
+    </script>
+</body>
+</html>

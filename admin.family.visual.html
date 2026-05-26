@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Vizuális 2D Fa Kezelő</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1E130C;
+            --bg-medium: #2C1A11;
+            --bg-light: #3D281D;
+            --gold-primary: #D4AF37;
+            --gold-hover: #F3E5AB;
+            --gold-dark: #AA7C11;
+            --text-white: #F9F6F0;
+            --text-muted: #D1C7BD;
+            --border-gold: rgba(212, 175, 55, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-white); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .header {
+            background: var(--bg-medium); border-bottom: 1px solid var(--border-gold);
+            height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; flex-shrink: 0;
+        }
+        .header h1 { font-family: 'Cinzel', serif; color: var(--gold-primary); font-size: 1.4rem; }
+        .btn-back {
+            background: transparent; border: 1px solid var(--gold-primary); color: var(--gold-primary);
+            padding: 8px 15px; cursor: pointer; border-radius: 4px; text-decoration: none;
+        }
+
+        .admin-split { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Bal oldali választó */
+        .sidebar { width: 300px; background: var(--bg-medium); border-right: 1px solid var(--border-gold); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-title { padding: 20px; background: rgba(30, 19, 12, 0.5); font-family: 'Cinzel', serif; color: var(--gold-primary); border-bottom: 1px solid var(--border-gold); text-align: center; }
+        .client-list { flex: 1; overflow-y: auto; }
+        .client-item { padding: 15px 20px; border-bottom: 1px solid rgba(212, 175, 55, 0.1); cursor: pointer; }
+        .client-item.active { background: rgba(212, 175, 55, 0.1); border-left: 4px solid var(--gold-primary); color: var(--gold-primary); font-weight: 600; }
+
+        /* Jobb oldali Grafikus Alap és Építő */
+        .workspace { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+        /* Felső Gyors-Hozzáadó Panel */
+        .creator-panel {
+            background: var(--bg-medium); border-bottom: 1px solid var(--border-gold); padding: 15px 25px;
+            display: flex; gap: 15px; align-items: center; flex-wrap: wrap; z-index: 10;
+        }
+        .creator-panel input, .creator-panel select {
+            padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-gold); border-radius: 4px; color: var(--text-white); outline: none;
+        }
+        
+        /* Vizuális tér */
+        .tree-container {
+            flex: 1; overflow: auto; position: relative; padding: 40px;
+            display: flex; flex-direction: column; align-items: center;
+            background: radial-gradient(circle, var(--bg-light) 0%, var(--bg-dark) 100%);
+        }
+
+        #svg-admin-lines { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+        .generation-level { display: flex; justify-content: center; align-items: center; gap: 40px; margin: 40px 0; width: 100%; z-index: 2; position: relative;}
+
+        /* Admin Node Kártya Törlés funkcióval */
+        .node-card {
+            background: var(--bg-medium); border: 2px solid var(--border-gold); border-radius: 8px;
+            padding: 12px 18px; min-width: 190px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;
+        }
+        .node-card.main-node { border-color: var(--gold-primary); background: var(--bg-dark); }
+        .node-name { font-family: 'Cinzel', serif; font-weight: 600; color: var(--gold-primary); }
+        .node-relation { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); }
+        
+        .node-delete-btn {
+            position: absolute; top: -8px; right: -8px; background: #d9534f; color: white;
+            border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 0.7rem;
+            display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%); color: var(--bg-dark);
+            border: none; border-radius: 4px; padding: 10px 18px; font-weight: 600; cursor: pointer; text-transform: uppercase; font-size: 0.85rem;
+        }
+        .empty-state { text-align: center; color: var(--text-muted); margin: auto; font-family: 'Cinzel', serif; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-folder-tree"></i> 2D Családfa Grafikus Építő (Admin)</h1>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Vissza</a>
+    </div>
+
+    <div class="admin-split">
+        <div class="sidebar">
+            <div class="sidebar-title">Ügyfelek</div>
+            <div class="client-list" id="admin-client-list"></div>
+        </div>
+
+        <div class="workspace">
+            <div class="creator-panel" id="admin-ctrl-panel" style="display: none;">
+                <input type="text" id="add-name" placeholder="Rokon neve" required>
+                <select id="add-relation">
+                    <option value="szulo">Szülő / Ős</option>
+                    <option value="hazastars">Házastárs</option>
+                    <option value="testver">Testvér</option>
+                    <option value="gyermek">Gyermek</option>
+                </select>
+                <input type="text" id="add-dates" placeholder="Évszámok (pl: 1932-2001)">
+                <button class="btn-gold" onclick="addNodeToTree()"><i class="fa-solid fa-plus"></i> Ág hozzáadása</button>
+            </div>
+
+            <div class="tree-container" id="admin-tree-container">
+                <div class="empty-state">
+                    <i class="fa-solid fa-network-wired" style="font-size: 4rem; color: var(--gold-primary); margin-bottom: 20px; opacity: 0.4;"></i>
+                    <h2>Válasszon ki egy ügyfelet a 2D fa generálásához</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCbwYmAgwlZrREyFqDCKajOCWzZmYx6FnM",
+          authDomain: "csaladi-naptar-9f58a.firebaseapp.com",
+          projectId: "csaladi-naptar-9f58a",
+          storageBucket: "csaladi-naptar-9f58a.firebasestorage.app",
+          messagingSenderId: "299884351675",
+          appId: "1:299884351675:web:2b6d800b5ad9c0b3c3199e"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let selectedClientEmail = null;
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) { window.location.href = "index.html"; }
+            else { loadClientList(); }
+        });
+
+        function loadClientList() {
+            db.collection("chats").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                const list = document.getElementById('admin-client-list');
+                list.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = `client-item ${selectedClientEmail === data.chatId ? 'active' : ''}`;
+                    div.innerText = data.chatId;
+                    div.onclick = () => selectClient(data.chatId, div);
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        function selectClient(email, element) {
+            selectedClientEmail = email;
+            document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById('admin-ctrl-panel').style.display = 'flex';
+            
+            renderAdminTreeStructure();
+        }
+
+        function renderAdminTreeStructure() {
+            const container = document.getElementById('admin-tree-container');
+            container.innerHTML = `
+                <svg id="svg-admin-lines"></svg>
+                <div class="generation-level" id="alvl-parents"></div>
+                <div class="generation-level" id="alvl-center">
+                    <div class="node-card main-node" id="anode-self">
+                        <div class="node-relation">Ügyfél (Központ)</div>
+                        <div class="node-name">${selectedClientEmail.split('@')[0]}</div>
+                    </div>
+                </div>
+                <div class="generation-level" id="alvl-children"></div>
+            `;
+            loadTreeData();
+        }
+
+        function loadTreeData() {
+            db.collection("family_trees").where("userEmail", "==", selectedClientEmail).onSnapshot(snapshot => {
+                const pLvl = document.getElementById('alvl-parents');
+                const cLvl = document.getElementById('alvl-center');
+                const chLvl = document.getElementById('alvl-children');
+
+                if(!pLvl) return;
+                pLvl.innerHTML = ''; chLvl.innerHTML = '';
+                document.querySelectorAll('.admin-dyn-node').forEach(e => e.remove());
+
+                snapshot.forEach(doc => {
+                    const m = doc.data();
+                    const card = document.createElement('div');
+                    card.className = 'node-card admin-dyn-node';
+                    card.id = `anode-${doc.id}`;
+                    card.innerHTML = `
+                        <button class="node-delete-btn" onclick="deleteNode('${doc.id}')"><i class="fa-solid fa-times"></i></button>
+                        <div class="node-relation">${m.relationType}</div>
+                        <div class="node-name">${m.name}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted)">${m.birthDate || ''}</div>
+                    `;
+
+                    if(m.relationType === 'szulo') pLvl.appendChild(card);
+                    if(m.relationType === 'hazastars' || m.relationType === 'testver') cLvl.appendChild(card);
+                    if(m.relationType === 'gyermek') chLvl.appendChild(card);
+                });
+
+                setTimeout(drawAdminLines, 300);
+            });
+        }
+
+        function addNodeToTree() {
+            const name = document.getElementById('add-name').value.trim();
+            const type = document.getElementById('add-relation').value;
+            const dates = document.getElementById('add-dates').value.trim();
+
+            if(!name) return alert("Kérjük, adjon meg egy nevet!");
+
+            db.collection("family_trees").add({
+                userEmail: selectedClientEmail,
+                name: name,
+                relationType: type,
+                birthDate: dates,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                document.getElementById('add-name').value = '';
+                document.getElementById('add-dates').value = '';
+            });
+        }
+
+        function deleteNode(id) {
+            if(confirm("Biztosan törli ezt a személyt a vizuális fáról?")) {
+                db.collection("family_trees").doc(id).delete();
+            }
+        }
+
+        function drawAdminLines() {
+            const svg = document.getElementById('svg-admin-lines');
+            if(!svg) return;
+            svg.innerHTML = '';
+            
+            const selfCard = document.getElementById('anode-self');
+            if(!selfCard) return;
+
+            const container = document.getElementById('admin-tree-container');
+            const cRect = container.getBoundingClientRect();
+
+            const selfRect = selfCard.getBoundingClientRect();
+            const selfX = selfRect.left - cRect.left + container.scrollLeft + (selfRect.width / 2);
+            const selfY = selfRect.top - cRect.top + container.scrollTop + (selfRect.height / 2);
+
+            document.querySelectorAll('.admin-dyn-node').forEach(node => {
+                const nodeRect = node.getBoundingClientRect();
+                const nodeX = nodeRect.left - cRect.left + container.scrollLeft + (nodeRect.width / 2);
+                const nodeY = nodeRect.top - cRect.top + container.scrollTop + (nodeRect.height / 2);
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const midY = (selfY + nodeY) / 2;
+                const dAttribute = `M ${selfX} ${selfY} L ${selfX} ${midY} L ${nodeX} ${midY} L ${nodeX} ${nodeY}`;
+
+                path.setAttribute("d", dAttribute);
+                path.setAttribute("stroke", "#D4AF37");
+                path.setAttribute("stroke-width", "2");
+                path.setAttribute("fill", "none");
+                path.setAttribute("style", "opacity: 0.5;");
+                svg.appendChild(path);
+            });
+        }
+
+        document.getElementById('admin-tree-container').onscroll = drawAdminLines;
+        window.onresize = drawAdminLines;
+    </script>
+</body>
+</html>

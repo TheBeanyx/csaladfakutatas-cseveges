@@ -41,26 +41,22 @@
 
         .admin-split { display: flex; flex: 1; overflow: hidden; }
         
-        /* Bal oldali választó */
         .sidebar { width: 300px; background: var(--bg-medium); border-right: 1px solid var(--border-gold); display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-title { padding: 20px; background: rgba(30, 19, 12, 0.5); font-family: 'Cinzel', serif; color: var(--gold-primary); border-bottom: 1px solid var(--border-gold); text-align: center; }
         .client-list { flex: 1; overflow-y: auto; }
         .client-item { padding: 15px 20px; border-bottom: 1px solid rgba(212, 175, 55, 0.1); cursor: pointer; }
         .client-item.active { background: rgba(212, 175, 55, 0.1); border-left: 4px solid var(--gold-primary); color: var(--gold-primary); font-weight: 600; }
 
-        /* Jobb oldali Grafikus Alap és Építő */
         .workspace { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         
-        /* Felső Gyors-Hozzáadó Panel */
         .creator-panel {
             background: var(--bg-medium); border-bottom: 1px solid var(--border-gold); padding: 15px 25px;
-            display: flex; gap: 15px; align-items: center; flex-wrap: wrap; z-index: 10;
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap; z-index: 10;
         }
         .creator-panel input, .creator-panel select {
-            padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-gold); border-radius: 4px; color: var(--text-white); outline: none;
+            padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-gold); border-radius: 4px; color: var(--text-white); outline: none; min-width: 140px;
         }
         
-        /* Vizuális tér */
         .tree-container {
             flex: 1; overflow: auto; position: relative; padding: 40px;
             display: flex; flex-direction: column; align-items: center;
@@ -70,7 +66,6 @@
         #svg-admin-lines { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
         .generation-level { display: flex; justify-content: center; align-items: center; gap: 40px; margin: 40px 0; width: 100%; z-index: 2; position: relative;}
 
-        /* Admin Node Kártya Törlés funkcióval */
         .node-card {
             background: var(--bg-medium); border: 2px solid var(--border-gold); border-radius: 8px;
             padding: 12px 18px; min-width: 190px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;
@@ -108,12 +103,20 @@
         <div class="workspace">
             <div class="creator-panel" id="admin-ctrl-panel" style="display: none;">
                 <input type="text" id="add-name" placeholder="Rokon neve" required>
+                
                 <select id="add-relation">
                     <option value="szulo">Szülő / Ős</option>
-                    <option value="hazastars">Házastárs</option>
+                    <option value="hazastars">Házastárs (Sűrű szaggatott)</option>
+                    <option value="mostoha_hazastars">Mostoha Házastárs (Ritka szaggatott)</option>
                     <option value="testver">Testvér</option>
                     <option value="gyermek">Gyermek</option>
+                    <option value="mostoha_gyermek">Mostoha Gyermek (Ritka szaggatott)</option>
                 </select>
+
+                <select id="add-parent-connection">
+                    <option value="self">Ügyfél (Központ)</option>
+                </select>
+
                 <input type="text" id="add-dates" placeholder="Évszámok (pl: 1932-2001)">
                 <button class="btn-gold" onclick="addNodeToTree()"><i class="fa-solid fa-plus"></i> Ág hozzáadása</button>
             </div>
@@ -140,6 +143,7 @@
         const db = firebase.firestore();
 
         let selectedClientEmail = null;
+        let localNodesCache = []; // A legördülő menü dinamikus frissítéséhez
 
         firebase.auth().onAuthStateChanged(user => {
             if (!user) { window.location.href = "index.html"; }
@@ -196,30 +200,54 @@
                 pLvl.innerHTML = ''; chLvl.innerHTML = '';
                 document.querySelectorAll('.admin-dyn-node').forEach(e => e.remove());
 
+                localNodesCache = [];
+                const selectMenu = document.getElementById('add-parent-connection');
+                selectMenu.innerHTML = '<option value="self">Ügyfél (Központ)</option>';
+
                 snapshot.forEach(doc => {
                     const m = doc.data();
+                    localNodesCache.push({ id: doc.id, ...m });
+
+                    // Legördülő menü bővítése a névvel
+                    const opt = document.createElement('option');
+                    opt.value = doc.id;
+                    opt.innerText = `${m.name} (${getRelationLabelName(m.relationType)})`;
+                    selectMenu.appendChild(opt);
+
                     const card = document.createElement('div');
                     card.className = 'node-card admin-dyn-node';
                     card.id = `anode-${doc.id}`;
+                    card.setAttribute('data-parent-link', m.parentId || 'self');
+                    card.setAttribute('data-rel-type', m.relationType);
+                    
                     card.innerHTML = `
                         <button class="node-delete-btn" onclick="deleteNode('${doc.id}')"><i class="fa-solid fa-times"></i></button>
-                        <div class="node-relation">${m.relationType}</div>
+                        <div class="node-relation">${getRelationLabelName(m.relationType)}</div>
                         <div class="node-name">${m.name}</div>
                         <div style="font-size:0.75rem;color:var(--text-muted)">${m.birthDate || ''}</div>
                     `;
 
                     if(m.relationType === 'szulo') pLvl.appendChild(card);
-                    if(m.relationType === 'hazastars' || m.relationType === 'testver') cLvl.appendChild(card);
-                    if(m.relationType === 'gyermek') chLvl.appendChild(card);
+                    if(['hazastars', 'mostoha_hazastars', 'testver'].includes(m.relationType)) cLvl.appendChild(card);
+                    if(['gyermek', 'mostoha_gyermek'].includes(m.relationType)) chLvl.appendChild(card);
                 });
 
                 setTimeout(drawAdminLines, 300);
             });
         }
 
+        function getRelationLabelName(type) {
+            const types = {
+                szulo: 'Szülő/Ős', testver: 'Testvér', gyermek: 'Gyermek',
+                hazastars: 'Házastárs', mostoha_hazastars: 'Mostoha Házastárs', mostoha_gyermek: 'Mostoha Gyermek'
+            };
+            return types[type] || type;
+        }
+
         function addNodeToTree() {
             const name = document.getElementById('add-name').value.trim();
             const type = document.getElementById('add-relation').value;
+            const parentId = document.getElementById('add-parent-connection').value;
             const dates = document.getElementById('add-dates').value.trim();
 
             if(!name) return alert("Kérjük, adjon meg egy nevet!");
@@ -228,6 +256,7 @@
                 userEmail: selectedClientEmail,
                 name: name,
                 relationType: type,
+                parentId: parentId, // Elmentjük, kihez kötődik!
                 birthDate: dates,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
@@ -237,7 +266,7 @@
         }
 
         function deleteNode(id) {
-            if(confirm("Biztosan törli ezt a személyt a vizuális fáról?")) {
+            if(confirm("Biztosan törli ezt a személyt?")) {
                 db.collection("family_trees").doc(id).delete();
             }
         }
@@ -247,30 +276,43 @@
             if(!svg) return;
             svg.innerHTML = '';
             
-            const selfCard = document.getElementById('anode-self');
-            if(!selfCard) return;
-
             const container = document.getElementById('admin-tree-container');
             const cRect = container.getBoundingClientRect();
 
-            const selfRect = selfCard.getBoundingClientRect();
-            const selfX = selfRect.left - cRect.left + container.scrollLeft + (selfRect.width / 2);
-            const selfY = selfRect.top - cRect.top + container.scrollTop + (selfRect.height / 2);
+            document.querySelectorAll('.admin-dyn-node, .main-node').forEach(node => {
+                if(node.id === 'anode-self') return; // A központból nem indul önmagába vonal
 
-            document.querySelectorAll('.admin-dyn-node').forEach(node => {
-                const nodeRect = node.getBoundingClientRect();
-                const nodeX = nodeRect.left - cRect.left + container.scrollLeft + (nodeRect.width / 2);
-                const nodeY = nodeRect.top - cRect.top + container.scrollTop + (nodeRect.height / 2);
+                const parentTargetId = node.getAttribute('data-parent-link');
+                const relType = node.getAttribute('data-rel-type');
+                
+                // Megkeressük a szülő HTML elemét (vagy a központot)
+                const parentElement = parentTargetId === 'self' ? document.getElementById('anode-self') : document.getElementById(`anode-${parentTargetId}`);
+                if(!parentElement) return;
+
+                const pRect = parentElement.getBoundingClientRect();
+                const pX = pRect.left - cRect.left + container.scrollLeft + (pRect.width / 2);
+                const pY = pRect.top - cRect.top + container.scrollTop + (pRect.height / 2);
+
+                const nRect = node.getBoundingClientRect();
+                const nX = nRect.left - cRect.left + container.scrollLeft + (nRect.width / 2);
+                const nY = nRect.top - cRect.top + container.scrollTop + (nRect.height / 2);
 
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                const midY = (selfY + nodeY) / 2;
-                const dAttribute = `M ${selfX} ${selfY} L ${selfX} ${midY} L ${nodeX} ${midY} L ${nodeX} ${nodeY}`;
+                const midY = (pY + nY) / 2;
+                const dAttribute = `M ${pX} ${pY} L ${pX} ${midY} L ${nX} ${midY} L ${nX} ${nY}`;
 
                 path.setAttribute("d", dAttribute);
                 path.setAttribute("stroke", "#D4AF37");
                 path.setAttribute("stroke-width", "2");
                 path.setAttribute("fill", "none");
-                path.setAttribute("style", "opacity: 0.5;");
+
+                // VONALSTÍLUSOK BEÁLLÍTÁSA A TÍPUS ALAPJÁN
+                if (relType === 'hazastars') {
+                    path.setAttribute("stroke-dasharray", "5, 5"); // Sűrű szaggatott
+                } else if (relType === 'mostoha_hazastars' || relType === 'mostoha_gyermek') {
+                    path.setAttribute("stroke-dasharray", "15, 15"); // Nagyon ritka szaggatott
+                }
+
                 svg.appendChild(path);
             });
         }
